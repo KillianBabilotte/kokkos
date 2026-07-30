@@ -94,6 +94,26 @@ KOKKOS_IMPL_HOST_FUNCTION inline uint64_t clock_tic_host() noexcept {
 
   return (result);
 
+#elif defined(__riscv) || defined(__riscv__)  // RISC-V
+  // see : https://riscv.github.io/riscv-isa-manual/snapshot/spec/#ext:zicntr
+  uint64_t cycles;
+
+#if __riscv_xlen == 64  // RISC-V 64-bit
+  asm volatile("rdcycle %0" : "=r"(cycles));
+
+#else  // RISC-V 32-bit
+  uint32_t upper, lower, tmp;
+  do {
+    asm volatile("rdcycleh %0\n\trdcycle %1\n\trdcycleh %2"
+                 : "=r"(upper), "=r"(lower), "=r"(tmp));
+  } while (upper != tmp);
+
+  cycles = (static_cast<uint64_t>(upper) << 32) | lower;
+
+#endif
+
+  return cycles;  // RISC-V
+
 #else
 
   return std::chrono::high_resolution_clock::now().time_since_epoch().count();

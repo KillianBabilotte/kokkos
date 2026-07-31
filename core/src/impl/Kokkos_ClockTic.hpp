@@ -88,7 +88,7 @@ KOKKOS_IMPL_DEVICE_FUNCTION inline uint64_t clock_tic_device() noexcept {
   // See:
   // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html?highlight=clock64#special-registers-clock64
   uint64_t cycles;
-  asm volatile("mov.u64 %0, %clock64;" : "=l"(cycles));
+  asm volatile("mov.u64 %0, %%clock64;" : "=l"(cycles));
   return cycles;
 
 #elif defined(__HIP_DEVICE_COMPILE__) || defined(__AMDGCN__)

@@ -1688,6 +1688,30 @@ class Random_SFC64_Pool {
     locks_(state.state_idx_, 0) = 0;
   }
 
+  template<typename LockPolicy>
+  KOKKOS_INLINE_FUNCTION
+  uint64_t atomic_draws_from_state(const uint64_t state_idx, const uint64_t num_draws) const {
+    uint64_t result = 0;
+
+    // Acquire lock for this state_idx, run action, release lock
+    Kokkos::Experimental::atomic_locked_action<execution_space, LockPolicy>(
+        &locks_(state_idx, 0), [&]() {
+          // Instantiate temporary generator from state
+          Random_SFC64<DeviceType> gen(state_, state_idx);
+
+          // Advance generator state and draw sample
+          for(uint64_t i = 0; i < num_draws; i++)
+            result = gen.urand64();
+
+          // Write updated state back to memory before releasing lock
+          for (int i = 0; i < 4; i++) {
+            state_(state_idx, i) = gen.state_[i];
+          }
+        });
+
+    return result;
+  }
+
 };  // Random_SFC64_Pool
 
 namespace Impl {

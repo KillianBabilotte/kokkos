@@ -84,15 +84,10 @@ KOKKOS_IMPL_DEVICE_FUNCTION inline uint64_t amd_get_cycle_counter() noexcept {
 #endif
 
 KOKKOS_IMPL_DEVICE_FUNCTION inline uint64_t clock_tic_device() noexcept {
-#if defined(__CUDA_ARCH__) || defined(__NVPTX__) || defined(__PTX_SM__)
-  // See:
-  // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html?highlight=clock64#special-registers-clock64
-  uint64_t cycles;
-  asm volatile("mov.u64 %0, %%clock64;" : "=l"(cycles));
-  return cycles;
+#if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
 
-#elif defined(__HIP_DEVICE_COMPILE__) || defined(__AMDGCN__)
-  return amd_get_cycle_counter();
+  // Return value of 64-bit hi-res clock register.
+  return clock64();
 
 // FIXME_SYCL We can only return something useful for Intel GPUs and with RDC
 #elif defined(KOKKOS_ENABLE_SYCL) &&                       \
@@ -100,6 +95,19 @@ KOKKOS_IMPL_DEVICE_FUNCTION inline uint64_t clock_tic_device() noexcept {
     defined(KOKKOS_ARCH_INTEL_GPU) && defined(__SYCL_DEVICE_ONLY__)
 
   return intel_get_cycle_counter();
+
+// Use asm for NVIDIA GPUs when on a different backend than CUDA.
+#elif defined(__CUDA_ARCH__) || defined(__NVPTX__) || defined(__PTX_SM__)
+  // See:
+  // https://docs.nvidia.com/cuda/parallel-thread-execution/index.html?highlight=clock64#special-registers-clock64
+  uint64_t cycles;
+  asm volatile("mov.u64 %0, %%clock64;" : "=l"(cycles));
+  return cycles;
+
+// Use asm for AMD GPUs when on a different backend than HIP.
+#elif defined(__HIP_DEVICE_COMPILE__) || defined(__AMDGCN__)
+
+  return amd_get_cycle_counter();
 
 #else
 
